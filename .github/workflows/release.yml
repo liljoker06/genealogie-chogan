@@ -1,0 +1,108 @@
+# Compile Généalogie Chogan pour Windows et macOS et publie la release ici, dans le dépôt public.
+# Le code vient du dépôt privé (PRIVATE_REPO), lu avec le secret PRIVATE_REPO_TOKEN le temps du
+# build ; il n'est jamais publié. Les minutes Actions d'un dépôt public sont gratuites.
+#
+# Lancement : Actions → Release → Run workflow, en donnant le tag du dépôt privé (ex. v2.0.0).
+# La release porte ce même tag.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag du dépôt privé à compiler et à publier (ex. v2.0.0)"
+        required: true
+        type: string
+
+env:
+  PRIVATE_REPO: liljoker06/genealogie-rs
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+          - os: macos-latest
+            name: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PRIVATE_REPO }}
+          ref: ${{ inputs.tag }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Tests
+        run: cargo test --workspace
+
+      - name: CLI Tauri
+        run: cargo install tauri-cli --version "^2" --locked
+
+      # macOS : un seul binaire pour Intel et Apple Silicon, livré en .dmg (non signé : clic droit → Ouvrir)
+      - name: Bundle macOS (universel)
+        if: matrix.os == 'macos-latest'
+        working-directory: crates/genealogie-app
+        run: cargo tauri build --target universal-apple-darwin
+
+      # Windows : installeur NSIS (setup.exe) + MSI, et l'exécutable seul (portable)
+      - name: Bundle Windows
+        if: matrix.os == 'windows-latest'
+        working-directory: crates/genealogie-app
+        run: cargo tauri build
+
+      - name: Rassembler les fichiers à livrer
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          mkdir -p out
+          if [ "${{ matrix.name }}" = "windows" ]; then
+            cp target/release/bundle/nsis/*.exe "out/Genealogie-Chogan-${version}-windows-setup.exe"
+            cp target/release/bundle/msi/*.msi "out/Genealogie-Chogan-${version}-windows.msi"
+            cp target/release/genealogie-chogan.exe "out/Genealogie-Chogan-${version}-windows-portable.exe"
+          else
+            cp target/universal-apple-darwin/release/bundle/dmg/*.dmg "out/Genealogie-Chogan-${version}-macos.dmg"
+          fi
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: genealogie-chogan-${{ matrix.name }}
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+
+      - name: Publier la release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Généalogie Chogan ${{ inputs.tag }}
+          files: out/*
+          fail_on_unmatched_files: true
+          body: |
+            Télécharger le fichier qui correspond à votre ordinateur :
+
+            - **Windows** : `Genealogie-Chogan-*-windows-setup.exe` (installeur), ou `*-windows-portable.exe` (sans installation).
+            - **Mac** (Intel et Apple Silicon) : `Genealogie-Chogan-*-macos.dmg`.
+
+            Au premier lancement, Windows et macOS affichent un avertissement car l'application
+            n'est pas signée : la marche à suivre est dans le README.
