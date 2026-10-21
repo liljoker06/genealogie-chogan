@@ -38,12 +38,29 @@ plupart des Windows 10 ; s'il manque, l'installeur le télécharge.
 ## Installer sur Mac
 
 1. Ouvrez le fichier `.dmg` et glissez *Genealogie Chogan* dans le dossier *Applications*.
-2. Au premier lancement, macOS refuse d'ouvrir une application qui n'est pas signée par un
-   développeur identifié. Deux façons de passer :
-   - **clic droit** (ou Ctrl + clic) sur l'application → **Ouvrir** → **Ouvrir** ;
-   - ou, après un premier refus, *Réglages Système* → *Confidentialité et sécurité* → bouton
-     **Ouvrir quand même** en bas de la page.
-3. Les fois suivantes, l'application s'ouvre normalement.
+2. Au premier lancement, macOS affiche **« Genealogie Chogan ne peut pas être ouvert »** ou
+   « Apple n'a pas pu vérifier… ». C'est normal : l'application n'est pas signée par un
+   développeur enregistré chez Apple, et macOS (Gatekeeper) la bloque, même copiée dans
+   *Applications*. Cliquez sur **Terminé** (surtout pas sur « Placer dans la corbeille »).
+3. Ouvrez **Réglages Système → Confidentialité et sécurité**, descendez jusqu'à la section
+   **Sécurité** : la ligne « Genealogie Chogan a été bloqué » apparaît. Cliquez sur
+   **Ouvrir quand même**, puis confirmez avec votre mot de passe ou Touch ID.
+4. L'application s'ouvre. Ce n'est demandé qu'une seule fois ; les lancements suivants sont
+   normaux.
+
+**Autre méthode**, sur les macOS un peu anciens : dans *Applications*, clic droit (ou Ctrl + clic)
+sur *Genealogie Chogan* → **Ouvrir** → **Ouvrir**. Sur les versions récentes de macOS, cette
+méthode ne fonctionne plus toujours, d'où le passage par les Réglages.
+
+**Si rien n'y fait**, ouvrez le *Terminal* (Applications → Utilitaires), collez cette ligne,
+validez par Entrée, puis relancez l'application :
+
+```
+xattr -cr "/Applications/Genealogie Chogan.app"
+```
+
+Cette commande retire la marque « téléchargé depuis internet » du fichier. Ne le faites que pour
+une application dont vous connaissez la provenance, comme celle-ci, téléchargée depuis cette page.
 
 ## Utiliser l'application
 
